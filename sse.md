@@ -123,3 +123,92 @@ r: (3, 3, 0, 0, 0, 0, 0, 0)
 
 注意`order*`中我们不想要值的地方都用-1代替, 这是因为8位的-1的二进制表示为: 11111111,
 16位的-1的表示刚好是两个8位的拼接, 所以不需要转换.
+
+## 利用cpuid检测CPU对指令集的支持情况
+
+Intel提供了一个平台来查询所有Intrinsics函数: [Intrinsics Guide](https://software.intel.com/sites/landingpage/IntrinsicsGuide/)
+包括函数的头文件, 对应的CPUID, 功能描述, 伪代码形式的操作说明等等. 需要注意的是,
+对于一个给定的CPU, 不是每一个Intrinsics函数都能支持.
+如果程序中使用了CPU不支持的Intrinsics函数, 可以通过编译, 但运行时会报错:
+`Illegal instruction`. 这个帖子 [How to check if a CPU supports the SSE3 instruction set?](https://stackoverflow.com/questions/6121792/how-to-check-if-a-cpu-supports-the-sse3-instruction-set)
+给出了由CPUID判断CPU是否支持某一个Intrinsics版本的代码,
+下面这段程序是根据帖子中的代码修改而来:
+
+```c++
+#include <cpuid.h>
+#include <string>
+#include <iostream>
+
+//// 这里的bit_##intrinsics是定义在cpuid.h中的宏
+#define CHECK_SUPPORT(cpuinfo, intrinsics)                  \
+  do {                                                      \
+    bool support = (((cpuinfo) & bit_##intrinsics) != 0);   \
+    std::cout << "support "#intrinsics": "                  \
+              << std::boolalpha << support << std::endl;    \
+  } while (0)
+
+void get_cpuid(int info[4], int type) {
+  __cpuid_count(type, 0, info[0], info[1], info[2], info[3]);
+}
+
+
+int main(int argc, char *argv[]) {
+  int info[4];
+  get_cpuid(info, 0);
+  int nIds = info[0];
+
+  get_cpuid(info, 0x80000000);
+  unsigned nExIds = info[0];
+
+  //// 下面的这些对应关系都较为复杂, 不想自己从头去捋, 直接从原贴上搬下来.
+  if (nIds >= 0x00000001){
+    get_cpuid(info, 0x00000001);
+
+    CHECK_SUPPORT(info[3], MMX);
+    CHECK_SUPPORT(info[3], SSE);
+    CHECK_SUPPORT(info[3], SSE2);
+
+    CHECK_SUPPORT(info[2], SSE3);
+    CHECK_SUPPORT(info[2], SSSE3);
+    CHECK_SUPPORT(info[2], SSE4_1);
+    CHECK_SUPPORT(info[2], SSE4_2);
+    CHECK_SUPPORT(info[2], AES);
+    CHECK_SUPPORT(info[2], AVX);
+    CHECK_SUPPORT(info[2], FMA);
+    CHECK_SUPPORT(info[2], RDRND);
+  }
+
+  if (nIds >= 0x00000007){
+    get_cpuid(info, 0x00000007);
+
+    CHECK_SUPPORT(info[1], BMI);
+    CHECK_SUPPORT(info[1], BMI2);
+    CHECK_SUPPORT(info[1], ADX);
+    CHECK_SUPPORT(info[1], SHA);
+    CHECK_SUPPORT(info[2], PREFETCHWT1);
+
+    CHECK_SUPPORT(info[1], AVX512F);
+    CHECK_SUPPORT(info[1], AVX512CD);
+    CHECK_SUPPORT(info[1], AVX512PF);
+    CHECK_SUPPORT(info[1], AVX512ER);
+    CHECK_SUPPORT(info[1], AVX512VL);
+    CHECK_SUPPORT(info[1], AVX512BW);
+    CHECK_SUPPORT(info[1], AVX512DQ);
+    CHECK_SUPPORT(info[1], AVX512IFMA);
+    CHECK_SUPPORT(info[2], AVX512VBMI);
+  }
+
+  if (nExIds >= 0x80000001){
+    get_cpuid(info, 0x80000001);
+
+    CHECK_SUPPORT(info[2], ABM);
+    CHECK_SUPPORT(info[2], SSE4a);
+    CHECK_SUPPORT(info[2], FMA4);
+    CHECK_SUPPORT(info[2], XOP);
+  }
+  return 0;
+}
+```
+
+这段代码实际上就是检查记录CPUID的信息的对应位上是否为1. 实际使用时,
+只需要留下我们关心的几项即可.
