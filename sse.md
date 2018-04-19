@@ -212,3 +212,160 @@ int main(int argc, char *argv[]) {
 
 这段代码实际上就是检查记录CPUID的信息的对应位上是否为1. 实际使用时,
 只需要留下我们关心的几项即可.
+
+## 用SSE进行图像Pooling操作
+
+最近在项目中需要用到对一幅图像进行kernel为4x4, stride为4的average pooling操作.
+为了得到最大的运行速度, 也对这个操作用SSE进行了改写, 代码如下:
+
+```c++
+#include <stdint.h>
+#include <immintrin.h>
+#include <emmintrin.h>
+#include <glog/logging.h>
+#include <opencv2/core/core.hpp>
+
+#define MM_SHUFFLE_EPI16(i) (((i) << 9) + (1 << 8) + ((i) << 1))
+
+static void average_sse_48(const uint8_t* r0,
+                           const uint8_t* r1,
+                           const uint8_t* r2,
+                           const uint8_t* r3,
+                           uint8_t* dst) {
+  const __m128i zeros = _mm_set1_epi8(0);
+
+  __m128i rsum[6];
+  for (int i = 0; i < 3; ++i, r0 += 16, r1 += 16, r2 += 16, r3 += 16) {
+    //// row 0
+    const int idlo = 2 * i;
+    const int idhi = 2 * i + 1;
+    __m128i mr = _mm_loadu_si128((__m128i*) r0);
+    rsum[idlo] = _mm_unpacklo_epi8(mr, zeros);
+    rsum[idhi] = _mm_unpackhi_epi8(mr, zeros);
+    //// row 1
+    mr = _mm_loadu_si128((__m128i*) r1);
+    rsum[idlo] = _mm_add_epi16(rsum[idlo], _mm_unpacklo_epi8(mr, zeros));
+    rsum[idhi] = _mm_add_epi16(rsum[idhi], _mm_unpackhi_epi8(mr, zeros));
+    //// row 2
+    mr = _mm_loadu_si128((__m128i*) r2);
+    rsum[idlo] = _mm_add_epi16(rsum[idlo], _mm_unpacklo_epi8(mr, zeros));
+    rsum[idhi] = _mm_add_epi16(rsum[idhi], _mm_unpackhi_epi8(mr, zeros));
+    //// row 3
+    mr = _mm_loadu_si128((__m128i*) r3);
+    rsum[idlo] = _mm_add_epi16(rsum[idlo], _mm_unpacklo_epi8(mr, zeros));
+    rsum[idhi] = _mm_add_epi16(rsum[idhi], _mm_unpackhi_epi8(mr, zeros));
+  }
+
+  const short ID[] = {
+    MM_SHUFFLE_EPI16(0), MM_SHUFFLE_EPI16(1), MM_SHUFFLE_EPI16(2),
+    MM_SHUFFLE_EPI16(3), MM_SHUFFLE_EPI16(4), MM_SHUFFLE_EPI16(5),
+    MM_SHUFFLE_EPI16(6), MM_SHUFFLE_EPI16(7)
+  };
+  //// 分解第一组8个数据: BGR BGR BG
+  const __m128i v1_group1 = _mm_setr_epi16(ID[0], ID[1], ID[2], -1, -1, -1, -1, -1);
+  const __m128i v1_group2 = _mm_setr_epi16(ID[3], ID[4], ID[5], -1, -1, -1, -1, -1);
+  const __m128i v1_group3 = _mm_setr_epi16(ID[6], ID[7], -1, -1, -1, -1, -1, -1);
+  //// 分解第二组8个数据: R BGR BGR B
+  const __m128i v2_group3 = _mm_setr_epi16(-1, -1, ID[0], -1, -1, -1, -1, -1);
+  const __m128i v2_group4 = _mm_setr_epi16(ID[1], ID[2], ID[3], -1, -1, -1, -1, -1);
+  const __m128i v2_group1 = _mm_setr_epi16(-1, -1, -1, ID[4], ID[5], ID[6], -1, -1);
+  const __m128i v2_group2 = _mm_setr_epi16(-1, -1, -1, ID[7], -1, -1, -1, -1);
+  //// 分解第三组8个数据: GR BGR BGR
+  const __m128i v3_group2 = _mm_setr_epi16(-1, -1, -1, -1, ID[0], ID[1], -1, -1);
+  const __m128i v3_group3 = _mm_setr_epi16(-1, -1, -1, ID[2], ID[3], ID[4], -1, -1);
+  const __m128i v3_group4 = _mm_setr_epi16(-1, -1, -1, ID[5], ID[6], ID[7], -1, -1);
+
+  __m128i average[2];
+  for (int i = 0; i < 2; ++i) {
+    const __m128i& v1 = rsum[3 * i];
+    const __m128i& v2 = rsum[3 * i + 1];
+    const __m128i& v3 = rsum[3 * i + 2];
+    average[i] = _mm_shuffle_epi8(v1, v1_group1);
+    average[i] = _mm_add_epi16(average[i], _mm_shuffle_epi8(v1, v1_group2));
+    average[i] = _mm_add_epi16(average[i], _mm_shuffle_epi8(v1, v1_group3));
+    average[i] = _mm_add_epi16(average[i], _mm_shuffle_epi8(v2, v2_group3));
+    average[i] = _mm_add_epi16(average[i], _mm_shuffle_epi8(v2, v2_group4));
+    average[i] = _mm_add_epi16(average[i], _mm_shuffle_epi8(v2, v2_group1));
+    average[i] = _mm_add_epi16(average[i], _mm_shuffle_epi8(v2, v2_group2));
+    average[i] = _mm_add_epi16(average[i], _mm_shuffle_epi8(v3, v3_group2));
+    average[i] = _mm_add_epi16(average[i], _mm_shuffle_epi8(v3, v3_group3));
+    average[i] = _mm_add_epi16(average[i], _mm_shuffle_epi8(v3, v3_group4));
+    average[i] = _mm_srli_epi16(average[i], 4);
+  }
+  average[0] = _mm_shuffle_epi8(average[0], _mm_setr_epi8(
+      0, 2, 4, 6, 8, 10, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1));
+  average[1] = _mm_shuffle_epi8(average[1], _mm_setr_epi8(
+      -1, -1, -1, -1, -1, -1, 0, 2, 4, 6, 8, 10, -1, -1, -1, -1));
+  __m128i result = _mm_add_epi8(average[0], average[1]);
+  //// 保存前64位, 8个数字
+  *((int64_t*) dst) = _mm_cvtsi128_si64(result);
+  //// 保存后32位, 4个数字
+  *((int32_t*) (dst + 8)) = _mm_cvtsi128_si32(_mm_srli_si128(result, 8));
+}
+
+cv::Mat AveragePoolingSSE(const cv::Mat& image) {
+  const int dst_rows = image.rows / 4;
+  const int dst_cols = image.cols / 4;
+  cv::Mat dst(dst_rows, dst_cols, CV_8UC3);
+
+  for (int i = 0; i < dst_rows; ++i) {
+    const uchar* line0 = image.data + 4 * i * image.step;
+    const uchar* line1 = line0 + image.step;
+    const uchar* line2 = line1 + image.step;
+    const uchar* line3 = line2 + image.step;
+    uchar* dstdata = dst.data + i * dst.step;
+    //// 结果图像中4个pixel, 对应12个value, 对应原图像中16个pixel, 48个value
+    for (int j = 0; j < dst_cols; j += 4) {
+      average_sse_48(line0, line1, line2, line3, dstdata);
+      line0 += 48;
+      line1 += 48;
+      line2 += 48;
+      line3 += 48;
+      dstdata += 12;
+    }
+  }
+  return dst;
+}
+```
+
+源图像中4x4的区域对应结果图像中的一个像素, 由于一个像素包含rgb三个值,
+则对于源图像中每一行需要处理12个值, 而对于`__m128i`而言, 一次性可以读取16个值,
+所以我们在每一轮的计算中, 对每一行一次性读取3个`__m128i`, 共48个值, 对应结果图像中的4个像素.
+
+这里我们主要看函数: `average_sse_48`, 这个函数首先将每一行对应的像素相加,
+得到48个按BGR排列的值, 然后设法对这48个值进行重新排列, 并求和, 最终得到pooling结果.
+
+注意到8位的数据在求和的过程中可能有溢出, 所以得先将数据转化成16位的,
+这使得第一步的求和结果为一个6维的`__m128i`数组: `__m128i rsum[6];`,
+每一个`__m128i`都包含8个16位的数据.
+
+在`rsum[6]`中, 48个数据按照BGR的顺序交错排列, 注意到`rsum[6]`中, 头3维的排列顺序和后3维一样,
+所以这里我们可以将其分为两组, 每一组包含3个`__m128i`, 每一个包含8个值, 总共24个值,
+其排列顺序为:
+
+|  数据ID  |      1     |       2     |      3     |
+|:--------:|:----------:|:-----------:|:----------:|
+| 排列顺序 | BGR BGR BG | R BGR BGR B | GR BGR BGR |
+
+计算均值时, 需要对相邻的4个B, 4个G, 4个R分别求和, 得到均值并写入到结果图像中.
+一种方法是将其中的每一个通道都分离出来, 每一个通道都包含8个值, 然后4个为一组求和取平均.
+
+这里我们采用另一种方法: 上述24个数总共8对BGR: BGR_1, BGR_2, BGR_3, ..., BGR_8, 将其分成4组,
+每一组的排列如下:
+
+| 分组ID |     内容     |
+|:------:|:------------:|
+|   1    | BGR_1, BGR_5 |
+|   2    | BGR_2, BGR_6 |
+|   3    | BGR_3, BGR_7 |
+|   4    | BGR_4, BGR_8 |
+
+求和时, 只需要将4组数对应的位置相加即可.
+
+最后需要注意的是, 这里我们没有做边界处理, 如果原图像的width不能被16整除,
+则在结果图像中每一行的右边会有一些像素没有被处理, 如果需要实现完整的功能,
+还需要对这些像素进行单独的处理, 不过通常情况下这些像素不是很多(这里每一行最多有3个),
+处理起来并不怎么耗时.
+
+在Intel(R) Xeon(R) CPU E5-2620 v4 @ 2.10GHz的机器上, 处理一幅10240x10240的图像,
+SSE版本耗时: 28.87ms, 而用指针操作实现的版本耗时: 65.3335ms, 加速比为2.26.
