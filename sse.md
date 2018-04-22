@@ -369,3 +369,13 @@ cv::Mat AveragePoolingSSE(const cv::Mat& image) {
 
 在Intel(R) Xeon(R) CPU E5-2620 v4 @ 2.10GHz的机器上, 处理一幅10240x10240的图像,
 SSE版本耗时: 28.87ms, 而用指针操作实现的版本耗时: 65.3335ms, 加速比为2.26.
+
+## 其他资源
+
+1. [SSE instructions to add all elements of an array](https://stackoverflow.com/questions/10930595/sse-instructions-to-add-all-elements-of-an-array)
+
+2. [Intel Intrinsics Guide](https://software.intel.com/sites/landingpage/IntrinsicsGuide/)
+
+3. [SSE2 Intrinsics各函数介绍](https://blog.csdn.net/fengbingchun/article/details/18460199)
+
+4. [Software optimization resources](http://www.agner.org/optimize/#vectorclass)
