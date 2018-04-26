@@ -10,7 +10,36 @@ system_clock中的duration定义为:
     `std::chrono::duration<long int, std::ratio<1l, 1000000000l> >`
 实际上就是 `std::chrono::nanoseconds`.
 
-这里给出用chrono模块写的一个计时类, 简单易用.
+头文件`<chrono>`中, `time_point`和`system_clock`类的定义如下:
+
+```c++
+template<typename _Clock, typename _Dur> struct time_point {
+  typedef _Clock                      clock;       
+  typedef _Dur                        duration;    
+  typedef typename duration::rep      rep;
+  typedef typename duration::period   period;
+
+  constexpr time_point() : __d(duration::zero()) { }  
+  ......
+ private:
+   //// 这里是实际存储time_point的变量, 比如: system_clock::now()的返回值
+  duration __d;  //__ 消除atom高亮
+};
+
+struct system_clock {  //} 消除atom高亮
+  typedef chrono::nanoseconds                           duration;
+  typedef duration::rep                                 rep;
+  typedef duration::period                              period;
+  typedef chrono::time_point<system_clock, duration>    time_point;
+  ......
+};
+```
+
+从代码中可以看出, 实际存储`time_point`的变量, 也是`duration`类型. 比如,
+`system_clock::now()`返回一个`time_point`, 而实际的值存储在`duration __d`中.
+由于这个`duration`实际上是`chrono::nanoseconds`, 精度够高, 不用担心精度损失.
+
+这里给出用chrono模块写的一个计时类和一个计算频率的类, 简单易用.
 
 ```c++
 #ifndef TIMER_H_
@@ -21,7 +50,7 @@ system_clock中的duration定义为:
 
 class Timer {
  public:
-  // 这里的system_clock只能用typedef, 不能用using
+  //// 这里的system_clock只能用typedef, 不能用using
   typedef std::chrono::system_clock system_clock;
   typedef std::chrono::duration<float> second_type;
   typedef std::chrono::duration<float, std::milli> millisecond_type;
@@ -103,6 +132,40 @@ class Timer {
   bool has_run_once_;
   bool has_accumulated_;
   int count_;
+};
+
+class FrequencyCounter {
+ public:
+  typedef std::chrono::system_clock system_clock;
+  typedef std::chrono::duration<float> second_type;
+
+  //// 这里interval以秒为单位, interval=0.001为毫秒
+  explicit FrequencyCounter(const float interval = 1.0f)
+      : interval_(interval), count_(0), is_started_(false) {}
+  ~FrequencyCounter() {}
+
+  float add(int times = 1) {
+    if (!is_started_) {
+      stamp_ = system_clock::now();
+      is_started_ = true;
+    }
+    count_ += times;
+    auto current = system_clock::now();
+    auto interval = std::chrono::duration_cast<second_type>(current - stamp_);
+    float result = -1.0f;
+    if (interval >= interval_) {
+      result = float(count_) * interval_.count() / interval.count();
+      stamp_ = current;
+      count_ = 0;
+    }
+    return result;
+  }
+
+ private:
+  const second_type interval_;
+  system_clock::time_point stamp_;
+  int count_;
+  bool is_started_;
 };
 
 #endif  // TIMER_H_
