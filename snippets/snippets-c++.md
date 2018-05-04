@@ -25,9 +25,9 @@ const std::string getCurrentSystemTime() {
 #ifndef DISABLE_COPY_MOVE_ASIGN
 #define DISABLE_COPY_MOVE_ASIGN(classname)            \
     classname(const classname&) = delete;             \
-    classname(const classname&&) = delete;            \
+    classname(classname&&) = delete;                  \
     classname& operator=(const classname&) = delete;  \
-    classname& operator=(const classname&&) = delete
+    classname& operator=(classname&&) = delete
 #endif  // DISABLE_COPY_MOVE_ASIGN
 ```
 
