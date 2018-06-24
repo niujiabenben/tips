@@ -22,12 +22,22 @@ const std::string getCurrentSystemTime() {
 `move assignment operator`这四个函数都设置成`delete`, 以避免误用.
 
 ```c++
+#ifndef DISABLE_COPY_ASIGN
+#define DISABLE_COPY_ASIGN(classname)              \
+  classname(const classname&) = delete;            \
+  classname& operator=(const classname&) = delete
+#endif  // DISABLE_COPY_ASIGN
+
+#ifndef DISABLE_MOVE_ASIGN
+#define DISABLE_MOVE_ASIGN(classname)         \
+  classname(classname&&) = delete;            \
+  classname& operator=(classname&&) = delete
+#endif  // DISABLE_MOVE_ASIGN
+
 #ifndef DISABLE_COPY_MOVE_ASIGN
-#define DISABLE_COPY_MOVE_ASIGN(classname)            \
-    classname(const classname&) = delete;             \
-    classname(classname&&) = delete;                  \
-    classname& operator=(const classname&) = delete;  \
-    classname& operator=(classname&&) = delete
+#define DISABLE_COPY_MOVE_ASIGN(classname)  \
+  DISABLE_COPY_ASIGN(classname);            \
+  DISABLE_MOVE_ASIGN(classname)
 #endif  // DISABLE_COPY_MOVE_ASIGN
 ```
 
