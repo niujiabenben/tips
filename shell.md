@@ -16,3 +16,40 @@ exec /bin/zsh -l
 ```
 
 source: https://unix.stackexchange.com/questions/136423/making-zsh-default-shell-without-root-access
+
+## linux添加账户
+
+```shell
+sudo useradd -d /home/chenli -m chenli -s /bin/bash
+sudo passwd chenli
+sudo nano /etc/sudoers
+chenli  ALL=(ALL:ALL) ALL
+```
+
+## 安装第三方库
+
+```shell
+sudo apt install build-essential
+sudo apt install automake autoconf
+sudo apt install clang libclang-dev
+sudo apt install libgoogle-glog-dev libgflags-dev libboost-all-dev
+sudo apt install libopencv-dev libjsoncpp-dev libcurl4-openssl-dev libfreetype6-dev
+```
+
+## 安装emacs
+
+```shell
+wget https://mirrors.ustc.edu.cn/gnu/emacs/emacs-25.3.tar.gz
+wget https://mirrors.sjtug.sjtu.edu.cn/gnu/emacs/emacs-25.3.tar.gz
+
+### without x-window:
+sudo apt-get install libncurses-dev
+./configure --without-x --prefix=${HOME}/Documents/tools/emacs
+make -j4 && make install
+
+### all packages:
+sudo apt install texinfo libx11-dev libxpm-dev libjpeg-dev libpng-dev
+sudo apt install libgif-dev libtiff-dev libgtk2.0-dev libncurses-dev libxpm-dev
+./configure --prefix=${HOME}/Documents/tools/emacs
+make -j4 && make install
+```
