@@ -44,7 +44,7 @@ wget https://mirrors.sjtug.sjtu.edu.cn/gnu/emacs/emacs-25.3.tar.gz
 
 ### without x-window:
 sudo apt-get install libncurses-dev
-./configure --without-x --prefix=${HOME}/Documents/tools/emacs
+./configure --without-x --with-gnutls=no --prefix=${HOME}/Documents/tools/emacs
 make -j4 && make install
 
 ### all packages:
