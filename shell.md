@@ -11,8 +11,10 @@ find ${dirname} -type f -print -exec chmod 644 {} \;
 Create .bash_profile in your home directory and add these lines:
 
 ```shell
-export SHELL=/bin/zsh
-exec /bin/zsh -l
+if [ -x /bin/zsh ]; then
+    export SHELL=/bin/zsh
+    exec /bin/zsh -l
+fi
 ```
 
 source: https://unix.stackexchange.com/questions/136423/making-zsh-default-shell-without-root-access
@@ -39,8 +41,8 @@ sudo apt install libopencv-dev libjsoncpp-dev libcurl4-openssl-dev libfreetype6-
 ## 安装emacs
 
 ```shell
-wget https://mirrors.ustc.edu.cn/gnu/emacs/emacs-25.3.tar.gz
-wget https://mirrors.sjtug.sjtu.edu.cn/gnu/emacs/emacs-25.3.tar.gz
+wget https://mirrors.ustc.edu.cn/gnu/emacs/emacs-26.1.tar.gz
+wget https://mirrors.sjtug.sjtu.edu.cn/gnu/emacs/emacs-26.1.tar.gz
 
 ### without x-window:
 sudo apt-get install libncurses-dev
