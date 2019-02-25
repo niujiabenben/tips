@@ -26,6 +26,9 @@ sudo useradd -d /home/chenli -m chenli -s /bin/bash
 sudo passwd chenli
 sudo nano /etc/sudoers
 chenli  ALL=(ALL:ALL) ALL
+
+### 删除账户
+sudo userdel -r chenli
 ```
 
 ## 安装第三方库
