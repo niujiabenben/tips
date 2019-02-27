@@ -117,6 +117,30 @@ $(PROTODIR)/%.pb.cc $(PROTODIR)/%.pb.h : $(PROTODIR)/%.proto
     cd $(PROTODIR); protoc --cpp_out=. $(notdir $<)
 ```
 
+## gcc的动态库和静态库
+
+动态库: 动态库和可执行文件格式一样, 但入口不同.
+
+静态库: 在linux系统中, 静态库只是一堆.o文件的压缩包.
+
+-static选项: On systems that support dynamic linking, this overrides -pie and
+prevents linking with the shared libraries. 链接时强制使用静态库.
+
+-shared选项: Produce a shared object which can then be linked with other objects
+to form an executable. 生成一个动态库, 而不是一个可执行文件.
+
+-Wl,option选项: Pass option as an option to the linker. 给linker传递参数, 如:
+-Wl,-Bstatic -lstatic_lib, 链接时使用静态库; -Wl,-Bdynamic -ldynamic_lib,
+链接时使用动态库. (默认情况下优先动态链接, 动态链接库找不到时采用静态链接).
+
+动态库链接到静态库中: 做不到, A shared library is actually an executable in a
+special format with entry points specified (and some sticky addressing issues
+included). It does not have all the information needed to link statically.
+
+静态库链接到动态库中: 用-Wl,-Bstatic选项, 且静态库必须是用"-fPIC"方式编译出来的,
+否则会报错: xxx can not be used when making a shared object; recompile with
+-fPIC.
+
 ## 其他
 
 有关Makefile的其他的一些知识, 比如Makefile中的函数, Makefile的命令行参数,
