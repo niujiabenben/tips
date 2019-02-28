@@ -160,4 +160,5 @@ destructor: 0
 ## gcc中的__restrict
 
 用于修饰指针, 用户确保指向该数据块的只有这一个指针, 编译器针对这个保证对代码进行优化.
+
 实例参考: [如何理解C语言关键字restrict？](https://www.zhihu.com/question/41653775)
