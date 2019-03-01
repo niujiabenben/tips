@@ -370,6 +370,25 @@ cv::Mat AveragePoolingSSE(const cv::Mat& image) {
 在Intel(R) Xeon(R) CPU E5-2620 v4 @ 2.10GHz的机器上, 处理一幅10240x10240的图像,
 SSE版本耗时: 28.87ms, 而用指针操作实现的版本耗时: 65.3335ms, 加速比为2.26.
 
+从以上过程可以看出, sse中如果要处理rgb这种数据是比较麻烦的事情. 上面的列求和部分可以用纯c来简化:
+
+```c++
+  uint16_t* temp = (uint16_t*) rsum;
+  for (int i = 0; i < 4; ++i) {
+    uint16_t b = 0, g = 0, r = 0;
+    b += *(temp++); g += *(temp++); r += *(temp++);
+    b += *(temp++); g += *(temp++); r += *(temp++);
+    b += *(temp++); g += *(temp++); r += *(temp++);
+    b += *(temp++); g += *(temp++); r += *(temp++);
+    *(dst++) = b >> 4;
+    *(dst++) = g >> 4;
+    *(dst++) = r >> 4;
+  }
+```
+
+但是, 从测试结果来看, 指令集shuffle的方法比单纯用c指针的方法还是要快一些. 
+可见指令集的加速能力还是很不错的.
+
 ## 其他资源
 
 1. [SSE instructions to add all elements of an array](https://stackoverflow.com/questions/10930595/sse-instructions-to-add-all-elements-of-an-array)
