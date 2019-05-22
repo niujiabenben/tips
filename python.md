@@ -89,6 +89,53 @@
 
 * 以上参考: [Private, protected and public in Python ](http://radek.io/2011/07/21/private-protected-and-public-in-python/)
 
+
+## python中的argparse
+
+示例参考: [官方argparse文档](https://docs.python.org/3/library/argparse.html)
+
+```python
+import argparse
+
+parser = argparse.ArgumentParser(description="An argparse example.")
+
+parser.add_argument("str_type_position_argument",
+                    help="A position argument with type 'str' (default).")
+
+parser.add_argument("int_type_position_argument", type=int,
+                    help="A position argument with type 'int'.");
+
+parser.add_argument("--int_type_optional_argument", type=int, default=0,
+                    help="An optional argument with type 'int' "
+                    "and default value '0'.")
+
+parser.add_argument("--bool_type_optional_argument", action="store_true",
+                    help="A bool optional argument, if specified, "
+                    "args.bool_type_optional_argument is True, "
+                    "otherwise it's False.")
+
+parser.add_argument("-c", "--choise", type=int, choices=[0, 1, 2],
+                    help="An int type optional argument, with short "
+                    "version '-c', and a range to chose from.")
+
+parser.add_argument("-o", "--count", action="count", default=0,
+                    help="An int type optional argument, whose value is "
+                    "the number of occurrences of 'o'.")
+
+group = parser.add_mutually_exclusive_group()
+
+group.add_argument("-v", "--verbose", action="store_true",
+                   help="Mutually exclusive group argument, "
+                   "mutually exclusive with 'quiet'.")
+
+group.add_argument("-q", "--quiet", action="store_true",
+                   help="Mutually exclusive group argument, "
+                   "mutually exclusive with 'verbose'.")
+
+
+args = parser.parse_args()
+```
+
 ## Other Tips
 
 * python多线程响应ctrl-c: 将所有子线程都设为daemon线程: thread.daemon = True
