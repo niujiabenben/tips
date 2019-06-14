@@ -62,4 +62,5 @@ make -j4 && make install
 ## Ubuntu Error: System program problem detected
 
 sudo nano /etc/default/apport
+
 Change the line that says enabled=1 to enabled=0 to disable Apport.
