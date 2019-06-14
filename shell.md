@@ -58,3 +58,8 @@ sudo apt install libgif-dev libtiff-dev libgtk2.0-dev libncurses-dev libxpm-dev
 ./configure --prefix=${HOME}/Documents/tools/emacs
 make -j4 && make install
 ```
+
+## Ubuntu Error: System program problem detected
+
+sudo nano /etc/default/apport
+Change the line that says enabled=1 to enabled=0 to disable Apport.
