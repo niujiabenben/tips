@@ -162,3 +162,59 @@ destructor: 0
 用于修饰指针, 用户确保指向该数据块的只有这一个指针, 编译器针对这个保证对代码进行优化.
 
 实例参考: [如何理解C语言关键字restrict？](https://www.zhihu.com/question/41653775)
+
+
+## shared_ptr 线程安全分析
+
+c++标准确保任何标准中的类满足以下的线程安全:
+
+* different threads can modify (call non-const member functions of) different
+  objects of any standard C++ type without additional synchronization.
+
+* different threads can read (call const member functions of) the same object
+  of any standard C++ type without additional synchronization.
+
+For std::shared_ptr this means refcount updates and the destruction of the
+managed object are thread-safe: a thread can make a copy of a shared_ptr
+(incrementing the refcount) while another thread is making a copy of the same
+shared_ptr (also incrementing refcount). No synchronization needed.
+Also it means when N threads all destroy their N copies of shared_ptr managing
+the same object, the destructor of that object will run only once, safely.
+
+下面是线程安全的:
+
+``` c++
+//// thread 0
+std::shared_ptr<T> ptr_0(new T());
+...
+ptr_0.reset();
+
+//// thread 1
+std::shared_ptr<T> ptr_1 = ptr_0;
+...
+ptr_1.reset();
+
+//// thread 2
+std::shared_ptr<T> ptr_2 = ptr_0;
+...
+ptr_2.reset();
+```
+
+下面是线程不安全的:
+
+``` c++
+//// thread 0
+std::shared_ptr<T> ptr_0(new T());
+...
+ptr_0.reset();
+
+//// thread 1
+ptr_0.reset();
+
+//// thread 2
+ptr_0 = std::shared_ptr<T>(new T());
+```
+
+参考:
+1. https://en.cppreference.com/w/cpp/memory/shared_ptr
+2. https://www.quora.com/How-is-thread-safe-shared_ptr-in-its-core-Is-it-ok-to-just-synchronize-its-internal-pointer-when-working-in-multiple-threads
