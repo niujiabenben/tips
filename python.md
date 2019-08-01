@@ -136,6 +136,68 @@ group.add_argument("-q", "--quiet", action="store_true",
 args = parser.parse_args()
 ```
 
+## python中的logging
+
+示例参考: [官方logging文档](https://docs.python.org/3/howto/logging.html)
+
+```python
+logging_root = "./data"
+
+def config_global_logger():
+    """设置全局的logger.
+
+    全局logger在主线程中使用, 同时log到文件和console.
+    """
+
+    assert len(logging_root) > 0
+    date = str(datetime.date.today())
+    logging_file = os.path.join(logging_root, date, "log_global.txt")
+    dirname = os.path.dirname(logging_file)
+    if not os.path.exists(dirname):
+        os.makedirs(dirname)
+
+    ### basic setting, log to file
+    format = "%(asctime)s %(filename)s:%(lineno)d] %(levelname)s: %(message)s"
+    logging.basicConfig(
+        filename=logging_file,
+        level=logging.INFO,
+        format=format,
+        datefmt="%Y-%m-%d %H:%M:%S")
+
+    ### also log to console
+    console = logging.StreamHandler()
+    console.setLevel(logging.INFO)
+    console.setFormatter(logging.Formatter(format))
+    logging.getLogger().addHandler(console)
+
+
+def get_local_logger(name):
+    """获取局部的logger.
+
+    局部logger在子线程中使用, 只log到文件.
+    """
+
+    assert name != "global"
+    assert len(logging_root) > 0
+
+    date = str(datetime.date.today())
+    name = "log_{}.txt".format(name)
+    logging_file = os.path.join(logging_root, date, name)
+    dirname = os.path.dirname(logging_file)
+    if not os.path.exists(dirname):
+        os.makedirs(dirname)
+
+    logger = logging.getLogger(name)
+    format = "%(asctime)s %(filename)s:%(lineno)d] %(levelname)s: %(message)s"
+    file_handler = logging.FileHandler(logging_file)
+    file_handler.setLevel(logging.INFO)
+    file_handler.setFormatter(logging.Formatter(format))
+    logger.addHandler(file_handler)
+    ### 局部的logger是全局logger的child, 这里防止局部的log扩散到全局log中
+    logger.propagate = False
+    return logger
+```
+
 ## Other Tips
 
 * python多线程响应ctrl-c: 将所有子线程都设为daemon线程: thread.daemon = True
